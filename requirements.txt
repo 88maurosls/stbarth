@@ -1,2 +1,4 @@
-app.py
-requirements.txt
+streamlit
+pandas
+pdfplumber
+openpyxl
