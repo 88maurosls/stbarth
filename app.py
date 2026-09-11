@@ -13,7 +13,7 @@ st.title("St.Barth PDF to Excel")
 st.write("v1.0 by MM")
 
 
-STATIC_COLS = ["CODICE", "COLORE", "DESCRIZIONE", "PREZZO WHS", "PREZZO RTL"]
+STATIC_COLS = ["CODICE", "COLORE", "DESCRIZIONE", "CATEGORIA", "PREZZO WHS", "PREZZO RTL"]
 
 ALPHA_SIZE_ORDER = {
     "XXS": 0,
@@ -155,10 +155,15 @@ def extract_header_description(block_words, header_top, sku):
     return normalize_text(" ".join(w["text"] for w in sorted(desc_words, key=lambda x: x["x0"])))
 
 
-def extract_variant_detail(block_words, header_top):
+def extract_left_column_details(block_words, header_top):
     """
-    Nel layout St.Barth il dettaglio grafica/colore è normalmente l'ultima riga
-    della colonna sinistra del blocco, ad es. 'APRES SKI TARTAN DRAW 1845 EMB'.
+    Nel layout St.Barth, sotto la riga con SKU/modello, la colonna sinistra
+    contiene normalmente:
+
+    1. la CATEGORIA, ad es. "POCHETTE" o "ROUND-NECK SWEATER"
+    2. il dettaglio variante/grafica/colore, ad es. "HERRINGBONE 0015 EMB"
+
+    Restituisce (categoria, dettaglio_variante).
     """
     left_words = [
         w
@@ -167,7 +172,13 @@ def extract_variant_detail(block_words, header_top):
     ]
     lines = group_words_into_lines(left_words)
     texts = [line["text"] for line in lines if line["text"]]
-    return texts[-1] if texts else ""
+
+    if not texts:
+        return "", ""
+
+    categoria = texts[0]
+    variant_detail = texts[-1] if len(texts) > 1 else ""
+    return categoria, variant_detail
 
 
 def extract_sizes(block_words, header_top):
@@ -279,7 +290,7 @@ def parse_product_block(block_words, header):
     codice, colore = sku.split("-", 1)
 
     header_description = extract_header_description(block_words, header_top, sku)
-    variant_detail = extract_variant_detail(block_words, header_top)
+    categoria, variant_detail = extract_left_column_details(block_words, header_top)
 
     descrizione = header_description
     if variant_detail and variant_detail.upper() != header_description.upper():
@@ -292,6 +303,7 @@ def parse_product_block(block_words, header):
         "CODICE": codice,
         "COLORE": colore,
         "DESCRIZIONE": descrizione,
+        "CATEGORIA": categoria,
         "PREZZO WHS": extract_wholesale_price(block_words),
         "PREZZO RTL": extract_retail_price(block_words),
     }
